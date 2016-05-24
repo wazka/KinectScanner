@@ -19,6 +19,7 @@ void SetIdentityMatrix(Matrix4 &mat)
 KinectScanner::KinectScanner() :
     kinectSensor(nullptr),
     depthStream(INVALID_HANDLE_VALUE),
+	currentDepthFrame(480, 640, CV_16UC1),
     nextFrameReadyEvent(INVALID_HANDLE_VALUE),
     voxelVolume(nullptr),
     depthImagePixelBuffer(nullptr),
@@ -45,7 +46,7 @@ KinectScanner::KinectScanner() :
 
     lastFrameTimeStamp.QuadPart = 0;
 
-	namedWindow(reconstructionWindow, cv::WINDOW_AUTOSIZE);
+	namedWindow(previewWindow, cv::WINDOW_AUTOSIZE);
 }
 
 KinectScanner::~KinectScanner()
@@ -148,8 +149,7 @@ HRESULT KinectScanner::InitKinectSensor()
     {
 		if (SUCCEEDED(kinectSensor->NuiInitialize(NUI_INITIALIZE_FLAG_USES_DEPTH)))
         {
-            nextFrameReadyEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr);
-			hr = kinectSensor->NuiImageStreamOpen(NUI_IMAGE_TYPE_DEPTH, NUI_IMAGE_RESOLUTION_640x480, 0, 2, nextFrameReadyEvent, &depthStream);
+			hr = kinectSensor->NuiImageStreamOpen(NUI_IMAGE_TYPE_DEPTH, NUI_IMAGE_RESOLUTION_640x480, NUI_IMAGE_STREAM_FLAG_DISTINCT_OVERFLOW_DEPTH_VALUES, 2, NULL, &depthStream);
         }
     }
 
@@ -160,6 +160,43 @@ HRESULT KinectScanner::InitKinectSensor()
     }
 
     return hr;
+}
+
+HRESULT KinectScanner::UpdateCurrentDepthFrame()
+{
+	NUI_IMAGE_FRAME frame;
+	HRESULT result = S_OK;
+
+	result = kinectSensor->NuiImageStreamGetNextFrame(depthStream, 0, &frame);
+	if (result < 0)
+		return result;
+
+	NUI_LOCKED_RECT rect;
+	frame.pFrameTexture->LockRect(0, &rect, nullptr, 0);
+	if (rect.Pitch != 0)
+	{
+		assert(width*height * 2 == rect.size);
+		memcpy(currentDepthFrame.ptr<short>(), rect.pBits, rect.size);
+		currentDepthFrame = currentDepthFrame / 8;
+		result = S_OK;
+	}
+	else
+		result = E_FAIL;
+
+	frame.pFrameTexture->UnlockRect(0);
+	kinectSensor->NuiImageStreamReleaseFrame(depthStream, &frame);
+
+	return result;
+}
+
+Mat KinectScanner::GetCurrentDepthFrame()
+{
+	return currentDepthFrame;
+}
+
+void KinectScanner::UpdatePreview()
+{
+	imshow(previewWindow, currentDepthFrame);
 }
 
 HRESULT KinectScanner::InitVoxelVolume()
@@ -348,7 +385,7 @@ void KinectScanner::ProcessFrame()
 		assert(width * height * bytesPerPixel == rect.size);
 		cv::Mat img(height, width, CV_8UC4);
 		memcpy(img.ptr<short>(), rect.pBits, rect.size);
-	    cv::imshow(reconstructionWindow, img);
+	    cv::imshow(previewWindow, img);
     }
 
     frameTexture->UnlockRect(0);

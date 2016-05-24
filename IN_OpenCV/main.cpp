@@ -1,15 +1,27 @@
 #include "KinectScanner.h"
+#include <opencv2/highgui/highgui.hpp>
 
-/*
+
 int main()
 {
 	KinectScanner scanner;
-	scanner.Run();
+	scanner.InitKinectSensor();
+
+	while(true)
+	{
+		if(scanner.UpdateCurrentDepthFrame() == S_OK)
+			scanner.UpdatePreview();
+
+		if (waitKey(20) == 'q')
+			break;
+
+	}
 
 	return 0;
 }
-*/
 
+
+/*
 #include "directx/gk2_cubes.h"
 #include "directx/gk2_window.h"
 #include "directx/gk2_exceptions.h"
@@ -65,3 +77,4 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, LPWSTR cmdLine,
     app.reset();
     return exitCode;
 }
+*/

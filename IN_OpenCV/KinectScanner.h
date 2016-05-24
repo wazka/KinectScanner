@@ -4,6 +4,9 @@
 #include <string>
 #include "Timer.h"
 #include <vector>
+#include <opencv2\core\core.hpp>
+
+using namespace cv;
 
 template<class Interface>
 inline void SafeRelease(Interface *& pInterfaceToRelease)
@@ -38,7 +41,7 @@ class KinectScanner
     static const int bytesPerPixel = 4;
     static const int resetOnGapSize = 10000;
     static const int resetOnLostFrameCount = 1000;
-	const std::string reconstructionWindow = "reconstructionWindow";
+	const std::string previewWindow = "previewWindow";
 
 public:
 
@@ -46,6 +49,11 @@ public:
     ~KinectScanner();
 
     void Run();
+	HRESULT InitKinectSensor();
+	HRESULT UpdateCurrentDepthFrame();
+	Mat GetCurrentDepthFrame();
+	void UpdatePreview();
+
     KinectScanData GetScanData() const;
 
 private:
@@ -55,6 +63,8 @@ private:
     int height;
     int frameSize;
     HANDLE depthStream;
+	Mat currentDepthFrame;
+
     HANDLE nextFrameReadyEvent;
     LARGE_INTEGER lastFrameTimeStamp;
 	INuiFusionReconstruction*   voxelVolume;
@@ -72,7 +82,7 @@ private:
 	Timer timer;
 
     void Update();
-    HRESULT InitKinectSensor();
+    
     HRESULT InitVoxelVolume();
     HRESULT ExtractFrameData(NUI_IMAGE_FRAME &imageFrame);
     void ProcessFrame();
